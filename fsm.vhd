@@ -1,0 +1,60 @@
+-- FSM module 
+-- takes in from_rx_done_tick   *** comes from receiver uart
+-- takes in clk, and reset
+-- library declaration
+
+library ieee;
+use ieee.std_logic_1164.all;
+
+-- entity
+entity fsm is
+	port( clk,reset: in std_logic;
+			from_rx_done_tick: in std_logic;
+			from_dout: in std_logic_vector(7 downto 0);
+			to_clr_FF: out std_logic );
+end fsm;
+
+-- architecture
+architecture arch of fsm is
+	type state_type is (mute, play);
+	signal state_next, state_reg: state_type;
+begin
+	-- state register
+	process(clk, reset)
+	begin
+		if(reset='1') then
+			state_reg <= mute;
+		elsif(clk'event and clk='1') then
+			state_reg <= state_next;
+		end if;
+	end process;
+	
+	-- next-state and output logic
+	process(state_reg, from_rx_done_tick,from_dout) 
+	begin
+		state_next <= state_reg;
+		to_clr_FF <='0';
+		
+		case state_reg is
+			when mute=>
+				to_clr_FF <='1';
+				if(from_rx_done_tick='1') then
+						if(from_dout <= "00110001" || "00110010" || "00110011" || "00110100") then
+							state_next <= play;
+						else 
+					state_next <= mute; 
+					end if;
+				end if;
+			when play =>
+				if(from_rx_done_tick='1') then
+						if(from_dout <= "00110001" or "00110010" or "00110011" or "00110100") then
+							state_next <= play;
+
+						else
+							state_next <= mute;
+						end if;
+				end if; 
+		end case;
+	end process;
+end arch;
+					
